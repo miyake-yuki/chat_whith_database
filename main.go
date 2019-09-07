@@ -8,27 +8,32 @@ import (
 	"sync"
 )
 
-//templateHanlerは、テンプレートから作成され
+const tableName = "websocket_test"
+
+//rootHandlerは、テンプレートから作成され
 //http.Handlerインターフェースを満たすハンドラー
-type templateHandler struct {
-	once     sync.Once          //一度だけ実行される様にするための変数
-	filename string             //テンプレートファイルの名前
-	temp1    *template.Template // テンプレートへの参照
+//ルートディレクトリへのリクエストに対応する
+type rootHandler struct {
+	once     sync.Once          // 一度だけ実行される様にするための変数
+	filename string             // テンプレートファイルの名前
+	temp     *template.Template // テンプレートへの参照
 }
 
-func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//テンプレートを一度だけパースする
-	t.once.Do(func() {
-		t.temp1 = template.Must(template.ParseFiles(filepath.Join("templates", t.filename)))
+	root.once.Do(func() {
+		root.temp = template.Must(template.ParseFiles(filepath.Join("templates", root.filename)))
 	})
 	//テンプレートを表示（wに流し込む）
-	t.temp1.Execute(w, nil)
+	root.temp.Execute(w, nil)
 }
 
 func main() {
 	r := newRoom()
 	//ルートにハンドラーを登録
-	http.Handle("/", &templateHandler{filename: "chat.html"})
+	http.Handle("/", &rootHandler{filename: "index.html"})
+	// /chatにハンドラを登録
+	http.Handle("/chat", &chatHandler{filename: "chat.html"})
 	// /roomにハンドラを登録
 	http.Handle("/room", r)
 	//チャットルームを開始

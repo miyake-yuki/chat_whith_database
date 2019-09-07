@@ -10,40 +10,67 @@
   </head>
   <body>
     <ul id="messages"></ul>
+      {{range .PastMessages}}
+      <strong>{{.Name}}</strong>
+      <span>{{.Message}}</span><br />
+      {{end}}
     WebSocketを使ったチャットアプリケーション
     <form id="chatbox">
-        <textarea></textarea>
-        <input type="submit" value="送信"/>
+      <p id="name">{{.Name}}</p>
+      <textarea></textarea>
+      <input type="submit" value="送信"/>
     </form>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js">
-    </script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <script>
-      $(function(){
-        var socket = null;
-        var msgBox = $("#chatbox textarea");
-        var messages = $("#messages");
-        $("#chatbox").submit(function(){
-          if(!msgBox.val()) return false;
-          if(!socket){
-            alert("エラー：WebSocket通信が行われていません");
-            return false;
-          }
-          socket.send(msgBox.val());
-          msgBox.val("");
+    $(function(){
+      var socket = null;
+      var msgBox = $("#chatbox textarea");
+      var messages = $("#messages");
+      const name = $("#name").text();
+      $("#chatbox").submit(function(){
+        if(!msgBox.val()) return false;
+        if(!socket){
+          alert("エラー：WebSocket通信が行われていません");
           return false;
-        });
-        if(!window["WebSocket"]){
-          alert("エラー：WebSocketに対応していないブラウザです");
-        }else{
-          socket = new WebSocket("ws://localhost:8080/room");
-          socket.onclose = function(){
-            alert("接続が終了しました");
-          }
-          socket.onmessage = function(e){
-            messages.append($("<li>").text(e.data));
-          }
         }
+        var data = {
+          "FirstTime":false,
+          "Content":{
+            "Message":msgBox.val()
+          }
+        };
+        console.log(JSON.stringify(data));
+        socket.send(JSON.stringify(data));
+        msgBox.val("");
+        return false;
       });
+      if(!window["WebSocket"]){
+        alert("エラー：WebSocketに対応していないブラウザです");
+      }else{
+        socket = new WebSocket("ws://localhost:8080/room");
+        socket.onopen = function(){
+          var first_time = {
+            "FirstTime":true,
+            "Content":{
+              "Name":name
+            }
+          };
+          socket.send(JSON.stringify(first_time))
+        }
+        socket.onclose = function(){
+          alert("接続が終了しました");
+        };
+        socket.onmessage = function(e){
+          var msg = JSON.parse(e.data);
+          messages.append(
+            $("<li>").append(
+              $("<strong>").text(msg.Content.Name + ":"),
+              $("<span>").text(msg.Content.Message)
+            )
+          );
+        };
+      }
+    });
     </script>
   </body>
 </html>
