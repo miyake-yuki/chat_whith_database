@@ -1,14 +1,19 @@
 package main
 
 import (
+	"crypto/sha1"
+	"encoding/binary"
 	"fmt"
+	"log"
+	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-// client構造体はチャットを行う一人のユーザを表す
+//client構造体はチャットを行う一人のユーザを表す
 type client struct {
+	hash   uint64          //hashはnameとroomIDから生成されるハッシュ値
 	name   string          //nameはこのユーザの名前
 	socket *websocket.Conn //socketはこのクライアント用のWebSocketへの参照
 	send   chan *Message   //sendはメッセージが送られてくるチャネル
@@ -26,6 +31,54 @@ type Body struct {
 	Name    string `json:"Name"`    //Nameは発言者の名前
 	Message string `json:"Message"` //Messageはメッセージの内容
 	When    int64  //Whenは発言した時間(UNIX NANO TIME)
+}
+
+const (
+	socketBufferSize  = 1024
+	messageBufferSize = 256
+)
+
+var upgrader = &websocket.Upgrader{
+	ReadBufferSize:  socketBufferSize,
+	WriteBufferSize: socketBufferSize,
+}
+
+func newClient(name string, roomID uint64) *client {
+	//roomIDを[]byteに変換
+	buffer := make([]byte, binary.MaxVarintLen64)
+	binary.LittleEndian.PutUint64(buffer, roomID)
+	//nameとroomIDのバイト列を結合
+	buffer = append(buffer, []byte(name)...)
+	//bufferからハッシュ値を生成
+	hash := sha1.Sum(buffer)
+	//ハッシュ値をuint64に変換
+	value, _ := binary.Uvarint(hash[:])
+	//クライアントを生成
+	client := &client{
+		hash: value,
+		name: name,
+		send: make(chan *Message, messageBufferSize),
+		room: globalApart.offerRoom(roomID),
+	}
+	//クライアントを入室させる
+	client.room.join <- client
+
+	return client
+}
+
+func (c *client) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	//通信をWebSocketへアップグレード
+	socket, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Fatal("ServeHTTP: ", err)
+		return
+	}
+	c.socket = socket
+	//このメソッドの終了時にクライアントを退室させる
+	defer func() { c.room.leave <- c }()
+	//クライアントの読み書きを開始する
+	go c.write()
+	c.read()
 }
 
 //read()は、clientがWebSocketを通じてサーバに送信したデータをroomへ送る

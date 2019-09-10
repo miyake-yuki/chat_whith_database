@@ -8,7 +8,8 @@ import (
 	"sync"
 )
 
-const tableName = "websocket_test"
+//apartはroomを管理する変数
+var globalApart *apartment
 
 //rootHandlerは、テンプレートから作成され
 //http.Handlerインターフェースを満たすハンドラー
@@ -29,15 +30,14 @@ func (root *rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	r := newRoom()
+	//アパートを生成
+	globalApart = newApartment()
+	//アパートを管理
+	go globalApart.manage()
 	//ルートにハンドラーを登録
 	http.Handle("/", &rootHandler{filename: "index.html"})
 	// /chatにハンドラを登録
-	http.Handle("/chat", &chatHandler{filename: "chat.html"})
-	// /roomにハンドラを登録
-	http.Handle("/room", r)
-	//チャットルームを開始
-	go r.run()
+	http.Handle("/chat", newChatHandler("chat.html"))
 	// webサーバを開始
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)

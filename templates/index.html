@@ -3,10 +3,48 @@
     <title>ログイン</title>
   </head>
   <body>
-    <p>自分の名前を入力してください</p>
-    <form action="/chat" method="post">
-      ユーザ名:<input type="text" name="username">
-      <input type="submit" value="ログイン">
+    <p>自分の名前と入室するチャットルームの番号を入力してください</p>
+    <form id="login_form">
+      <table>
+        <tr>
+          <td>チャットルームの番号：</td><td><input type="text" name="room_id" id="room_id"></td>
+        </tr>
+        <tr>
+          <td>ユーザ名：</td><td><input type="text" name="username" id="username"></td>
+        </tr>
+      </table>
+      <input type="button" id="submit-button" value="ログイン"><br />
     </form>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script>
+    $(function(){
+      $("#submit-button").click(function(){
+        var id = Number($("#room_id").val());
+        if (Number.isNaN(id)) {
+          alert("チャットルームの番号には数値を入力してください");
+          return;
+        }
+        var data = {
+          "room_id" : id,
+          "username" : $("#username").val()
+        };
+        alert("undone"+JSON.stringify(data));
+        $.ajax({
+          url:"/chat",
+          type:"POST",
+          dataType:"json",
+          data:JSON.stringify(data)
+        })
+        .done((back) => {
+          alert("ログインに失敗");
+          alert("あなたはroom:"+String(back.room_id)+"には登録されていません");
+        })
+        .fail((back) => {
+          alert("サーバとの通信に失敗しました");
+          console.log("FAIL",back);
+        });
+      });
+    });
+    </script>
   </body>
 </html>

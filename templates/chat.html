@@ -27,23 +27,7 @@
       var msgBox = $("#chatbox textarea");
       var messages = $("#messages");
       const name = $("#name").text();
-      $("#chatbox").submit(function(){
-        if(!msgBox.val()) return false;
-        if(!socket){
-          alert("エラー：WebSocket通信が行われていません");
-          return false;
-        }
-        var data = {
-          "FirstTime":false,
-          "Content":{
-            "Message":msgBox.val()
-          }
-        };
-        console.log(JSON.stringify(data));
-        socket.send(JSON.stringify(data));
-        msgBox.val("");
-        return false;
-      });
+      //WebSocket通信に関する処理
       if(!window["WebSocket"]){
         alert("エラー：WebSocketに対応していないブラウザです");
       }else{
@@ -70,6 +54,24 @@
           );
         };
       }
+      //チャットの送信ボタンが押された場合の処理
+      $("#chatbox").submit(function(){
+        if(!msgBox.val()) return false;
+        if(!socket){
+          alert("エラー：WebSocket通信が行われていません");
+          return false;
+        }
+        var data = {
+          "FirstTime":false,
+          "Content":{
+            "Message":msgBox.val()
+          }
+        };
+        console.log(JSON.stringify(data));
+        socket.send(JSON.stringify(data));
+        msgBox.val("");
+        return false;
+      });
     });
     </script>
   </body>

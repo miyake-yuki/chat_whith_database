@@ -2,22 +2,20 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"net/http"
-
-	"github.com/gorilla/websocket"
 )
 
 //roomはチャットルームを表す構造体
 type room struct {
+	id      uint64
 	forward chan *Message    //forwardは他のクライアントに転送するメッセージ用のチャネル
 	join    chan *client     //joinはチャットルームに参加しようとするクライアントのためのチャネル
 	leave   chan *client     //leaveはチャットルームから退出しようとするクライアントのためのチャネル
 	clients map[*client]bool //clientsは在室している全てのクライアントが保持されるマップ
 }
 
-func newRoom() *room {
+func newRoom(id uint64) *room {
 	return &room{
+		id:      id,
 		forward: make(chan *Message),
 		join:    make(chan *client),
 		leave:   make(chan *client),
@@ -25,45 +23,9 @@ func newRoom() *room {
 	}
 }
 
-const (
-	socketBufferSize  = 1024
-	messageBufferSize = 256
-)
-
-var upgrader = &websocket.Upgrader{
-	ReadBufferSize:  socketBufferSize,
-	WriteBufferSize: socketBufferSize,
-}
-
-//このServeHTTPは /room へのリクエストに対応して、
-//websocket通信によるチャットを開始する
-
-//TODO:ServeHTTPがいつ終了するかを調べる->readの終了時=ReadJSONでエラーが発生した時
-func (r *room) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	//通信をWebSocketへアップグレード
-	socket, err := upgrader.Upgrade(w, req, nil)
-	if err != nil {
-		log.Fatal("ServeHTTP: ", err)
-		return
-	}
-	//クライアントを生成
-	client := &client{
-		name:   "",
-		socket: socket,
-		send:   make(chan *Message, messageBufferSize),
-		room:   r,
-	}
-	//クライアントをroomに入室させる
-	r.join <- client
-	//このAPIが終了する時にクライアントを退室させる
-	defer func() { r.leave <- client }()
-	go client.write()
-	client.read()
-}
-
 func (r *room) run() {
 	// テーブルに接続
-	table := connectDB().Table(tableName)
+	table := connectDB().Table("websocket_test")
 	for {
 		select {
 		//入室
@@ -73,6 +35,11 @@ func (r *room) run() {
 		case client := <-r.leave:
 			delete(r.clients, client)
 			close(client.send)
+			//もしクライアントがいなくなった場合、このgoroutineを終了する
+			if len(r.clients) == 0 {
+				globalApart.demolish <- r
+				return
+			}
 			//メッセージを受信
 		case mess := <-r.forward:
 			//データベースに登録

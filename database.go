@@ -34,12 +34,12 @@ func connectDB() *dynamo.DB {
 	})
 }
 
-func getLast10Data() []Data {
+func getLast10Data(id uint64) []Data {
 	var last10data []Data
 	// DBに接続
-	table := connectDB().Table(tableName)
+	table := connectDB().Table("websocket_test")
 	// 最新10件を取得
-	table.Get("room_id", 0).Order(dynamo.Descending).Limit(10).All(&last10data)
+	table.Get("room_id", id).Order(dynamo.Descending).Limit(10).All(&last10data)
 
 	return last10data
 }

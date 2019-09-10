@@ -1,0 +1,19 @@
+<html>
+  <head>
+    <title>ログイン</title>
+  </head>
+  <body>
+    <p>自分の名前と入室するチャットルームの番号を入力してください</p>
+    <form action="/chat" method="post">
+      <table>
+        <tr>
+          <td>チャットルームの番号：</td><td><input type="text" name="room_id"></td>
+        </tr>
+        <tr>
+          <td>ユーザ名：</td><td><input type="text" name="username"></td>
+        </tr>
+      </table>
+      <input type="submit" value="ログイン"><br />
+    </form>
+  </body>
+</html>
